@@ -1,0 +1,131 @@
+
+
+ async function getMoviebyTitle(req,res) {
+    try{
+        console.log("Fetching Data..");
+        const result = [];
+        //const { username } = req.params.username;
+        const searchkey = req.params.name;
+        
+        Movies.find({"title" : { "$regex": searchkey , "$options": "i" }}, function(err, items){
+            
+            var movie = [];
+            for (var i = 0 ; i < items.length ; i++){
+              movie.push(items[i]);
+            }
+            console.log(movie);
+            session.run("MATCH (n:movie{name : $title}) -[:Acted_In|:Directed |: Belong_To]-(r) Return r ",
+                    { title: req.params.name }
+                    
+                    )
+                    
+                    .then(function (data) {
+                         
+                        data.records.forEach(function(record){
+                            
+                            console.log("1] record._fields[0].properties = ",record._fields[0].properties.id);
+                            result.push(record._fields[0].properties.name);
+                            
+                        }
+                        )
+                    
+                
+                    }),
+             
+                  
+            //store data in redis as cache
+
+            client.setex (searchkey,3600, JSON.stringify(movie));
+
+            res.json(movie);
+            
+          })  
+
+    }
+    catch(err){
+        console.error(err);
+        res.status(500);
+    }
+}
+
+    async function getMovies(req,res) {
+   
+    Movies.find({}, function(err, items){
+            
+        var movie = [];
+        for (var i = 0 ; i < items.length ; i++){
+            console.log(items[i]);
+          movie.push(items[i].title);
+        }
+        console.log(movie);
+    session
+    .run(` 
+      UNWIND $propsArray as props
+      CREATE (n:Movie) SET n = props 
+      RETURN n
+    `, {
+        propsArray: movie
+    })
+    .subscribe({
+        onNext: function(record) {
+            console.log(record.get('n'));
+        },
+        onCompleted: function() {
+            session.close();
+        },
+        onError: function(error) {
+            console.log(error);
+        }
+    });
+})}
+
+
+
+session.run("MATCH (:actor{name: $element} | :director{name:$element} | :genre{name: $element})--(m:movie) Return movie",
+                                   {element : element}
+                                       )
+                                       .then(function (datamovie) {
+                                           const recom = [];
+                                           datamovie.records.forEach(function(record){
+                                               
+                                               console.log("1] record._fields[0].properties = ",record._fields[0].properties.name);
+                                               recom.push(record._fields[0].properties.name);
+                                           
+                                                   })
+                                console.log(recom);
+                                               });
+---------------------------------------------------------------
+
+z= items[i].title;
+                    console.log("---------"+ z);
+                    if (req.params.username){
+                        var searchresult = [];
+                    key = req.params.username +  '-searched';
+                    client.get(key, (err ,data)=>{
+                        if (err) throw err;
+                        if (data == null){
+                            
+                            console.log("No data found in redis for"+ req.params.username);
+                            searchresult.push(z);
+                            client.set(key,JSON.stringify(searchresult) );
+                        }
+                          
+                        if (data !== null){
+                            var d = [data];
+                            console.log("+++++++++++  "+ d);
+                            for (var i = 0 ; i < d.length ; i++) {
+                                if (d[i] != z){
+                                    d.push(z);
+                                }
+
+                            }
+                            console.log("qqqqqqqqqqqqq"+ d);
+                            //client.set(key,JSON.stringify(data) );
+                            
+                        }    
+                            
+                        })
+                        
+                
+                
+                }
